@@ -1,0 +1,13 @@
+{
+  "path": "/profile/1",
+  "children": [
+    {
+      "path": "/blog/:blogId",
+      "children": [
+        {
+          "path": "/article/:articles"
+        }
+      ]
+    }
+  ]
+}
