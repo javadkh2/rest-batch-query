@@ -22,12 +22,12 @@ server.on("stream", (stream, headers) => {
       "content-type": "application/json; charset=utf-8",
       ":status": 200,
     });
-    stream.write(`[{ "date": ${Date.now()} }`)
+    stream.write(`[{ "date": ${Date.now()} }`);
     return streamToString(stream)
       .then(JSON.parse)
       .then((query) => fetchAll(query, stream, headers))
       .then(() => console.log("all done!"))
-      .then(() => stream.end(']'))
+      .then(() => stream.end("]"))
       .catch((err) => {
         console.log("Error!:", err);
         stream.respond({
@@ -44,16 +44,13 @@ server.on("stream", (stream, headers) => {
   const file = `../client/build${headers[":path"]}`;
 
   fs.lstat(file, (err, status) => {
-    if (err || status.isDirectory()) {
+    if (err || !status.isFile()) {
       stream.respond({
         ":status": 404,
       });
       return stream.end("file not found");
     }
-    stream.respond({
-      ":status": 200,
-    });
-    fs.createReadStream(`../client/build${headers[":path"]}`).pipe(stream);
+    stream.respondWithFile(file);
   });
 });
 

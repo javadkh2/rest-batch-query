@@ -1,5 +1,4 @@
 import got from "got";
-import fs from "fs";
 
 function fetch(url) {
   console.log("fetch: ", url);
@@ -49,12 +48,11 @@ const rewirePattern = (path) => {
 };
 
 function rewrite(query, data) {
-  console.log("");
-  const { path, ...rest } = query;
-  const [keys, writer] = rewirePattern(path);
+  const { path, asset, ...rest } = query;
+  const [keys, writer] = rewirePattern(path || asset);
   const params = applyCollectionParam(keys, data);
   const paths = params.map(writer);
-  return paths.map((p) => ({ path: p, ...rest }));
+  return paths.map((p) => ({ [path ? "path" : "asset"]: p, ...rest }));
 }
 
 function pushData(path, data, stream, status = 200) {
@@ -68,58 +66,39 @@ function pushData(path, data, stream, status = 200) {
   });
 }
 
-function pushAsset(path, stream) {
-  fs.lstat(path, (err, status) => {
-    if (!err && !status.isDirectory()) {
-      console.log("PUSH ASSET", path);
-      stream.pushStream({ ":path": path }, (err, pushStream) => {
-        if (err) throw err;
-        pushStream.respond({
-          ":status": 200,
-        });
-        fs.createReadStream(`../client/build${path}`).pipe(pushStream);
-        stream.write(`, "${path}"`);
-      });
-    } else {
-      //TODO: complete it
-    }
+export function pushAsset(asset, stream) {
+  const path = `../client/build${asset}`;
+  console.log("asset:", path);
+  stream.pushStream({ ":path": asset }, (err, pushStream) => {
+    if (err) throw err;
+    pushStream.respondWithFile(path);
   });
 }
 
-function fetchAsset(assets, stream) {
-  console.log("parsed assets", assets);
-  assets.forEach(({ path }) => pushAsset(path, stream));
-}
-
 export default function fetchAll(batchRequest, stream) {
-  // console.log("PUSH batchRequest", batchRequest);
-  const requests = batchRequest.map((query) =>
-    fetch(`http://localhost:4001${query.path}`)
-      .then((result) => {
-        pushData(query.path, result, stream);
-        stream.write(`, "${query.path}"`);
-        if (query.children) {
-          const children = query.children
-            .map((child) => rewrite(child, result))
-            .flat();
+  const requests = batchRequest.map((query) => {
+    if (query.path) {
+      return fetch(`http://localhost:4001${query.path}`)
+        .then((result) => {
+          pushData(query.path, result, stream);
+          stream.write(`, "${query.path}"`);
+          if (query.children) {
+            const children = query.children
+              .map((child) => rewrite(child, result))
+              .flat();
 
-          return fetchAll(children, stream);
-        }
-        console.log("ASSETS", query.assets, result);
-        if (Array.isArray(query.assets) && query.assets.length) {
-          const assets = query.assets
-            .map((asset) => rewrite({ path: asset }, result))
-            .flat();
-
-          console.log("HMMMM", assets);
-          return fetchAsset(assets, stream);
-        }
-      })
-      .catch((error) => {
-        stream.write(`, "${query.path}"`);
-        pushData(query.path, error, stream, 500);
-      })
-  );
-
+            return fetchAll(children, stream);
+          }
+        })
+        .catch((error) => {
+          stream.write(`, "${query.path}"`);
+          pushData(query.path, error, stream, 500);
+        });
+    } else if (query.asset) {
+      pushAsset(query.asset, stream);
+      stream.write(`, "${query.asset}"`);
+      return Promise.resolve(query.asset);
+    }
+  });
   return Promise.all(requests);
 }
