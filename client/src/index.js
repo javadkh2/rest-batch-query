@@ -14,14 +14,15 @@ import { fetchResults } from "./request";
 //   document.getElementById("root")
 // );
 
-fetchResults(Profile.fetchQuery({ id: 1 })).then(() => {
-  ReactDOM.render(
-    <React.StrictMode>
-      <App />
-    </React.StrictMode>,
-    document.getElementById("root")
-  );
-});
+// console.log("Profile.fetchQuery2", Profile.fetchQuery2({ id: 1 }));
+// fetchResults(Profile.fetchQuery2({ id: 1 }))
+
+ReactDOM.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>,
+  document.getElementById("root")
+);
 
 // If you want to start measuring performance in your app, pass a function
 // to log results (for example: reportWebVitals(console.log))

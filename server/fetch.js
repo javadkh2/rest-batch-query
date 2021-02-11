@@ -21,10 +21,10 @@ function applyCollectionParam(keys, collection) {
 }
 
 const rewirePattern = (path) => {
-  const parts = path.split(/(:[^/:?&]*)/g);
+  const parts = path.split(/(<[^>]*>)/g);
   const keys = parts.reduce((acc, part, idx) => {
-    if (part.startsWith(":")) {
-      const key = part.substring(1);
+    if (part.startsWith("<")) {
+      const key = part.replace(/[<>]/g, "");
       return { ...acc, [key]: idx };
     }
     return acc;
@@ -56,35 +56,39 @@ function rewrite(query, data) {
 }
 
 export default function fetchAll(batchRequest, stream) {
-  console.log("batchRequest",batchRequest);
-  const requests = batchRequest.map((query) =>
-    fetch(`http://localhost:4001${query.path}`)
-      .then((result) => {
-        stream.write(
-          `,"${[query.path]}": ${JSON.stringify({
-            result,
-            timestamp: Date.now(),
-          })}`
-        );
+  console.log("batchRequest", batchRequest);
+  const requests = batchRequest
+    // we might define another resource types like assets. but for now we only support path
+    .filter(({ path }) => Boolean(path))
+    .map((query) =>
+      fetch(`http://localhost:4001${query.path}`)
+        .then((result) => {
+          stream.write(
+            `,"${[query.path]}": ${JSON.stringify({
+              result,
+              timestamp: Date.now(),
+            })}`
+          );
 
-        if (query.children) {
-          const children = query.children
-            .map((child) => rewrite(child, result))
-            .flat();
+          if (query.children) {
+            const children = query.children
+              .filter(({ path }) => Boolean(path))
+              .map((child) => rewrite(child, result))
+              .flat();
 
-          return fetchAll(children, stream);
-        }
-      })
-      .catch((error) => {
-        stream.write(
-          `,"${[query.path]}": ${JSON.stringify({
-            error,
-            timestamp: Date.now(),
-            isError: true,
-          })}`
-        );
-      })
-  );
+            return fetchAll(children, stream);
+          }
+        })
+        .catch((error) => {
+          stream.write(
+            `,"${[query.path]}": ${JSON.stringify({
+              error,
+              timestamp: Date.now(),
+              isError: true,
+            })}`
+          );
+        })
+    );
 
   return Promise.all(requests);
 }

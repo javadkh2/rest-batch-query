@@ -1,5 +1,5 @@
-import express from "express";
-import { profiles, blogs, articles } from "./fixture.js";
+const express = require("express");
+const { profiles, blogs, articles } = require("./fixture");
 
 const router = express.Router();
 
@@ -20,4 +20,4 @@ router.get("/profile/:id", getMiddleware(profiles));
 router.get("/blog/:id", getMiddleware(blogs));
 router.get("/article/:id", getMiddleware(articles));
 
-export default router;
+module.exports = router;
