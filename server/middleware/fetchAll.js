@@ -9,26 +9,37 @@ const getFetchAll = (get) =>
       .map((query) =>
         get(query.path)
           .then(({ headers, body }) => {
-            stream.write(
-              `,"${[query.path]}": ${JSON.stringify({
-                headers,
-                body,
-                timestamp: Date.now(),
-              })}`
-            );
+            let children;
 
             if (query.children) {
-              const children = query.children
+              // TODO: improve the performance here
+              children = query.children
                 .filter(({ path }) => Boolean(path))
                 .map((child) => pathResolver(child, body))
                 .flat();
+            }
 
+            stream.write(
+              `,${JSON.stringify({
+                path: query.path,
+                headers,
+                body,
+                timestamp: Date.now(),
+                // we are able to handel this in client
+                ...(children
+                  ? { children: children.map(({ path }) => path) }
+                  : {}),
+              })}`
+            );
+
+            if (children) {
               return fetchAll(children, stream);
             }
           })
           .catch((error) => {
             stream.write(
-              `,"${[query.path]}": ${JSON.stringify({
+              `,${JSON.stringify({
+                path: query.path,
                 error,
                 timestamp: Date.now(),
                 isError: true,

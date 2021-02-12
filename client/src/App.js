@@ -11,14 +11,26 @@ function App() {
           <Profile id={2} />
         </Suspense>
       ) : (
-        <button
-          onClick={(e) => {
-            e.preventDefault();
-            setStarted(true);
-          }}
-        >
-          Start
-        </button>
+        <div>
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              window.useQuery = true;
+              setStarted(true);
+            }}
+          >
+            use query
+          </button>
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              window.useQuery = false;
+              setStarted(true);
+            }}
+          >
+            normal fetch
+          </button>
+        </div>
       )}
     </div>
   );

@@ -1,83 +1,53 @@
-const sampleQuery = [
-  {
-    path: "/api/profile/2",
-    children: [
-      {
-        path: "/api/blog/<blogId>",
-        children: [
-          { path: "/api/article/<articles>" },
-        ],
-      },
-    ],
-  },
-];
+import { inspect, parseChunk, stateFactory } from "./utils";
 
-
-const setState = (initial = {}) => {
-  let state = initial;
-  return [
-    (key) => {
-      return state[key];
-    },
-    (update) => {
-      state = { ...state, ...update };
-      return state;
-    },
-  ];
-};
-
-const [getResult, setResult] = setState({});
-// const [getAssets, setAssets] = setState({});
+const [readState, setState, watch] = stateFactory({});
 
 // send batch query
 export function fetchResults(queries) {
   const data = Array.isArray(queries) ? queries : [queries];
-  return (
-    fetch("/query", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(data),
-    })
-      // TODO: complete this code to read chucks and use them immediately
-      .then((response) => response.body.getReader())
-      .then((reader) => {
-        function next() {
-          return reader.read().then(({ value, done }) => {
-            console.log("chunk", new TextDecoder("utf-8").decode(value));
-            // console.log(new TextDecoder("utf-8").decode(chunk));
-            if (!done) {
-              return next();
-            }
-          });
-        }
-        return next();
-      })
-      .then((response) => response.json())
-      .then(({ method, timestamp, ...urls }) => {
-        if (method === "push") {
-          setPushedValues(urls);
-          return { timestamp };
-        }
-        return { ...urls, timestamp };
-      })
-  );
-}
+  return fetch("/query", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  })
+    .then((response) => response.body.getReader())
+    .then((reader) => {
+      function next(memory = {}) {
+        return reader.read().then(({ value, done }) => {
+          const chunk = new TextDecoder("utf-8").decode(value);
+          const { chunks: responses, ...unprocessedPart } = parseChunk(
+            chunk,
+            memory
+          );
 
-function setPushedValues(urls) {
-  const paths = Object.entries(urls).filter(([url, { asset }]) => !asset);
-  paths.map(([path]) =>
-    fetch(path)
-      .then((r) => r.json())
-      .then((body) => setResult({ [path]: { body } }))
-  );
+          if (responses.length) {
+            const results = responses
+              .map(({ path, ...result }) => ({ [path]: result }))
+              .reduce((acc, item) => ({ ...acc, ...item }), {});
 
-  // setAssets(
-  //   Object.entries(urls)
-  //     .filter(([url, { asset }]) => asset)
-  //     .map(([url, result]) => ({ [url]: result }))
-  // );
+            // set children path to the state to inform related components the path is already requested
+            // TODO: instead of getting children from server we can generate them in client
+            Object.values(results)
+              .map(({ children }) => children)
+              .filter(Array.isArray)
+              .flat()
+              .map(inspect("child path:"))
+              .map(watch);
+
+            setState(results);
+          }
+
+          if (!done) {
+            return next(unprocessedPart);
+          }
+
+          return { result: "done" };
+        });
+      }
+      return next();
+    });
 }
 
 // run each request separately
@@ -86,70 +56,44 @@ function fetchResultsSeparately(queries) {
     queries.map(({ path }) =>
       fetch(path)
         .then((r) => r.json())
-        .then((body) => setResult({ [path]: { body } }))
+        .then((body) => setState({ [path]: { body } }))
     )
   );
 }
 
-const fetcher =
-  localStorage.getItem("query") === "1" ? fetchResults : fetchResultsSeparately;
-
-function fetchQuery(query) {
-  return fetcher(query)
-    .then(setResult)
-    .catch((err) => {
-      // TODO: update it based on server response
-      const error =
-        err instanceof Error ? err : new Error(err || "Unknown Error");
-
-      // setResult({
-      //   [query.path]: error,
-      // });
-
-      return Promise.reject(error);
-    });
-}
-
-// TODO: how to handel same call from different components with different children?
 // TODO: how to refetch in case of error?
-// TODO: Race condition
-export default function request(resources, refetch = false) {
+// TODO: Cache strategy : How long we should keep the response
+export default function request(resources) {
   const queries = resources.filter(({ path }) => Boolean(path));
 
-  // const assets = resources.filter(
-  //   ({ path, asset }) => !Boolean(path) && Boolean(asset)
-  // );
-
-  // const newAssets = assets.filter(({ asset }) => !getAssets(asset));
-
-  const newQueries = refetch
-    ? queries
-    : queries.filter(({ path }) => !getResult(path));
+  const newQueries = queries.filter(({ path }) => !readState(path));
+  const pendingQueries = queries.filter(
+    ({ path }) => readState(path) instanceof Promise
+  );
 
   if (newQueries.length === 0) {
     queries.forEach(({ path }) => {
-      if (getResult(path) instanceof Error) {
+      if (readState(path) instanceof Error) {
         throw Error;
       }
     });
 
-    const pendingRequests = queries
-      .filter(({ path }) => getResult(path) instanceof Promise)
-      .map(({ path }) => getResult(path));
+    const pendingRequests = pendingQueries.map(({ path }) => readState(path));
 
     if (pendingRequests.length > 0) {
+      // send signal to react suspense
       throw Promise.all(pendingRequests);
     }
 
-    return queries.map((query) => getResult(query.path).body);
+    return queries.map((query) => readState(query.path).body);
   }
 
-  const promise = fetchQuery([...newQueries /*, ...newAssets*/]);
-  setResult(
-    newQueries
-      .map((query) => ({ [query.path]: promise }))
-      .reduce((acc, item) => ({ ...acc, ...item }), {})
-  );
-  // setAssets(newAssets.map((query) => ({ [query.asset]: promise })));
-  throw promise;
+  const fetchQuery = window.useQuery ? fetchResults : fetchResultsSeparately;
+
+  fetchQuery(newQueries);
+  // send signal to react suspense
+  throw Promise.all([
+    ...newQueries.map(({ path }) => watch(path)),
+    ...pendingQueries,
+  ]);
 }

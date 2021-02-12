@@ -16,8 +16,11 @@ const getMiddleware = (model) => (req, res) => {
   }
 };
 
-router.get("/profile/:id", getMiddleware(profiles));
-router.get("/blog/:id", getMiddleware(blogs));
-router.get("/article/:id", getMiddleware(articles));
+const delay = (ms) => (req, res, next) => setTimeout(next, ms);
+
+// adding delay for test purpure
+router.get("/profile/:id", delay(10), getMiddleware(profiles));
+router.get("/blog/:id", delay(100), getMiddleware(blogs));
+router.get("/article/:id", delay(2000), getMiddleware(articles));
 
 module.exports = router;
