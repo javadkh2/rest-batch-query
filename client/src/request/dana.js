@@ -27,12 +27,12 @@ export function fetch(path, option) {
   const id = getId();
   const usedProps = [];
   const dependencies = getDependencies(path);
-  const query = [{
+  const query = {
     path,
     id,
     usedProps,
     dependencies,
-  }];
+  };
   if (option) {
     query.option = option;
   }
