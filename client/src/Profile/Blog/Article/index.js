@@ -20,14 +20,7 @@ export default function Article({ id }) {
   );
 }
 
-Article.fetchQuery = ({ id }) => [
-  {
-    path: `/api/article/${id}`,
-  },
-  { asset: `/assets/imgs/article/${id}.jpg` },
-];
-
-Article.fetchQuery3 = query(({ id }) => [
-  fetch(`/article/${id}`),
-  asset(`/imgs/article/${id}.jpg`),
+Article.fetchQuery = query(({ id }) => [
+  fetch(`/api/article/${id}`),
+  asset(`/assets/imgs/article/${id}.jpg`),
 ]);

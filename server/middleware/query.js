@@ -9,7 +9,7 @@ module.exports = ({ protocol = "http", port = 3000, host = "localhost" }) => {
     res.set("Content-Type", "application/json; charset=utf-8;");
     res.write(`[{"method": "embed", "timestamp": ${Date.now()}} `);
     Promise.resolve()
-      .then(() => fetchAll(batchRequest, res))
+      .then(() => fetchAll(batchRequest, res, req.headers))
       .then(() => {
         res.write("]");
         res.end();

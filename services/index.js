@@ -7,7 +7,7 @@ const query = require("../server/middleware/query");
 const app = express();
 const port = process.env.PORT || 4001;
 
-app.use(morgan("combined"));
+// app.use(morgan("combined"));
 
 app.use(bodyParser.json());
 

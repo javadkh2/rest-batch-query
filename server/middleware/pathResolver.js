@@ -7,10 +7,17 @@ function applyListParam(params, key, value) {
   return list.map((item) => applyParam(params, key, item)).flat();
 }
 
-function applyCollectionParam(keys, collection) {
-  return keys.reduce((acc, key) => applyListParam(acc, key, collection[key]), [
-    {},
-  ]);
+function applyCollectionParam(keys, getData) {
+  return keys.reduce(
+    (acc, key) => {
+      const data = getData(key);
+      // ignore empty values
+      return data != null && !Number.isNaN(data)
+        ? applyListParam(acc, key, data)
+        : acc;
+    },
+    [{}]
+  );
 }
 
 const rewirePattern = (path) => {
@@ -40,10 +47,10 @@ const rewirePattern = (path) => {
   ];
 };
 
-function pathResolver(query, data) {
+function pathResolver(query, getData) {
   const { path, asset, ...rest } = query;
   const [keys, writer] = rewirePattern(path || asset);
-  const params = applyCollectionParam(keys, data);
+  const params = applyCollectionParam(keys, getData);
   const paths = params.map(writer);
   return paths.map((p) => ({ [path ? "path" : "asset"]: p, ...rest }));
 }

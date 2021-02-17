@@ -24,12 +24,16 @@ export function fetchResults(queries) {
 
           if (responses.length) {
             const results = responses
-              .map(({ path, ...result }) => ({ [path]: result }))
+              .filter(({ path }) => path)
+              .map(({ path, error, response }) => ({
+                // TODO: complete error handling
+                [path]: error ? new Error("ERROR") : response,
+              }))
               .reduce((acc, item) => ({ ...acc, ...item }), {});
 
             // set children path to the state to inform related components the path is already requested
             // TODO: instead of getting children from server we can generate them in client
-            Object.values(results)
+            Object.values(responses)
               .map(({ children }) => children)
               .filter(Array.isArray)
               .flat()
@@ -97,3 +101,19 @@ export default function request(resources) {
     ...pendingQueries,
   ]);
 }
+
+const x = [
+  {
+    path: "/profile/2",
+    children: [
+      {
+        path: "/blog/<blogId>",
+        children: [
+          { path: "/article/<articles>" },
+          { asset: "/imgs/article/<articles>.jpg" },
+          { asset: "/imgs/<images>" },
+        ],
+      },
+    ],
+  },
+];

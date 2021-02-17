@@ -7,17 +7,45 @@ export function getChild(children) {
     return [children];
   }
 }
+const idFactory = (start = 0) => {
+  let id = start;
+  return function nextId() {
+    id += 1;
+    return id;
+  };
+};
+
+const getId = idFactory(0);
+
+export const prop = (id) => (path) => `<(${id}).${path}>`;
+
+function getDependencies(path) {
+  return [...path.matchAll(/<\((\d+)\)[^>]*>/g)].map(([all, match]) => +match);
+}
 
 export function fetch(path, option) {
-  const query = { path };
+  const id = getId();
+  const usedProps = [];
+  const dependencies = getDependencies(path);
+  const query = [{
+    path,
+    id,
+    usedProps,
+    dependencies,
+  }];
   if (option) {
     query.option = option;
   }
+  const getProp = (name) => {
+    if (!usedProps.includes(name)) {
+      usedProps.push(name);
+    }
+    return prop(id)(name);
+  };
   return {
     isFetch: true,
-    // TODO: should it support multiple then?
     then(cb) {
-      query.children = getChild(cb(prop));
+      query.children = getChild(cb(getProp));
       return query;
     },
     get() {
@@ -30,13 +58,8 @@ export function asset(asset) {
   return { asset };
 }
 
-export const prop = (path) => `<${path}>`;
-
 export function query(cb) {
-  const id = Symbol("uniq query id");
   return (...args) => {
-    const result = getChild(cb(...args));
-    result.queryId = id;
-    return result;
+    return getChild(cb(...args));
   };
 }

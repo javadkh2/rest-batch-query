@@ -9,7 +9,6 @@ const { request } = require("http");
 const fs = require("fs");
 const { streamToString, proxy } = require("../server/middleware/utils");
 const fetchAll = require("./lib/fetchAll");
-const { Stream } = require("stream");
 require("../services");
 
 const server = http2.createSecureServer({
@@ -40,7 +39,10 @@ server.on("stream", (stream, headers) => {
       });
   } else {
     // TODO: send headers too
-    request(`http://localhost:4001${headers[":path"]}`, proxy(stream)).end();
+    request(
+      `http://localhost:4001${headers[":path"]}`,
+      proxy(stream)
+    ).end();
   }
 });
 

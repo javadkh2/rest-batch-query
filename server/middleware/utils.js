@@ -1,3 +1,5 @@
+const { path } = require("ramda");
+
 function streamToString(stream) {
   const chunks = [];
   return new Promise((resolve, reject) => {
@@ -25,6 +27,30 @@ function safeJsonParse(str) {
   }
 }
 
+function getProps(id, obj, props) {
+  return props.reduce(
+    (acc, prop) => ({
+      ...acc,
+      [`(${id}).${prop}`]: path(prop.split("."), obj),
+    }),
+    {}
+  );
+}
+
+const cache = (initial) => {
+  let state = initial;
+  const get = (key) => {
+    return state[key];
+  };
+  const set = (update) => {
+    state = { ...state, ...update };
+    return state;
+  };
+  return { get, set };
+};
+
 module.exports.safeJsonParse = safeJsonParse;
 module.exports.streamToString = streamToString;
 module.exports.proxy = proxy;
+module.exports.getProps = getProps;
+module.exports.cache = cache;

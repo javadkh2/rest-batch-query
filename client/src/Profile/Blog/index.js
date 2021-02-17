@@ -33,23 +33,12 @@ export default function Blog({ id }) {
 }
 
 // TODO: convert it to a composable general approach that supports REST/GraphGL or ...
-Blog.fetchQuery = ({ id }) => [
-  {
-    path: `/api/blog/${id}`,
-    children: [
-      ...Article.fetchQuery({ id: "<articles>" }),
-      {
-        asset: `/assets/imgs/<images>`,
-      },
-    ],
-  },
-];
 // TODO: check the possibility of this API
 // even we can replace this code with another code in build time
 
-Blog.fetchQuery3 = query(({ id }) =>
-  fetch(`/blog/${id}`).then((prop) => [
-    Article.fetchQuery2({ id: prop("articles") }),
-    asset(`/imgs/${prop("images")}`),
+Blog.fetchQuery = query(({ id }) =>
+  fetch(`/api/blog/${id}`).then((prop) => [
+    Article.fetchQuery({ id: prop("articles") }),
+    asset(`/assets/imgs/${prop("images")}`),
   ])
 );

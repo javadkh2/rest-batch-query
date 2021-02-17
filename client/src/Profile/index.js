@@ -30,27 +30,9 @@ export default function Profile({ id }) {
 }
 
 // TODO: convert it to a composable general approach that supports REST/GraphGL or ...
-Profile.fetchQuery = ({ id }) => [
-  {
-    path: `/api/profile/${id}`,
-    children: [...Blog.fetchQuery({ id: "<blogId>" })],
-  },
-  {
-    asset: `/assets/avatar/${id}.png`,
-  },
-
-];
-
-Profile.fetchQuery2 = ({ id }) => [
-  fetch(`/profile/${id}`).then((prop) =>
-    Blog.fetchQuery2({ id: prop("blogId") })
+Profile.fetchQuery = query(({ id }) => [
+  fetch(`/api/profile/${id}`).then((prop) =>
+    Blog.fetchQuery({ id: prop("blogId") })
   ),
-  asset(`/avatar/${id}.png`),
-];
-
-Profile.fetchQuery3 = query(({ id }) => [
-  fetch(`/profile/${id}`).then((prop) =>
-    Blog.fetchQuery3({ id: prop("blogId") })
-  ),
-  asset(`/avatar/${id}.png`),
+  asset(`/assets/avatar/${id}.png`),
 ]);
